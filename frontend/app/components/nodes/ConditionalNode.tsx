@@ -1,35 +1,50 @@
-import React, { memo, useCallback } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
-
+import React, { memo, useCallback, useState, useEffect } from 'react';
+import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
 interface NodeData {
   condition: string;
   condition_inputs: string[];
-  true_value: number | null;
-  false_value: number | null;
+  true_value: number;
+  false_value: number;
+  onChange?: (id: string, data: any) => void;
 }
-
 const ConditionalNode: React.FC<NodeProps<NodeData>> = ({ data, isConnectable, id, selected }) => {
+  const [localCondition, setLocalCondition] = useState<string>(data.condition || ">");
+  const updateNodeInternals = useUpdateNodeInternals();
+  
+  const TRUE_VALUE = 1;
+  const FALSE_VALUE = -1;
+  useEffect(() => {
+    setLocalCondition(data.condition || ">");
+    
+    if (data.onChange) {
+      data.onChange(id, { 
+        true_value: TRUE_VALUE,
+        false_value: FALSE_VALUE 
+      });
+    } else {
+      data.true_value = TRUE_VALUE;
+      data.false_value = FALSE_VALUE;
+    }
+  }, [data.condition]);
   const handleConditionChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
-      data.condition = e.target.value;
+      const newCondition = e.target.value;
+      setLocalCondition(newCondition);
+      if (data.onChange) {
+        data.onChange(id, { 
+          condition: newCondition,
+          true_value: TRUE_VALUE,
+          false_value: FALSE_VALUE
+        });
+      } else {
+        data.condition = newCondition;
+        data.true_value = TRUE_VALUE;
+        data.false_value = FALSE_VALUE;
+        updateNodeInternals(id);
+      }
     },
-    [data]
+    [data, id, updateNodeInternals]
   );
-
-  const handleTrueValueChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      data.true_value = parseFloat(e.target.value) || 0;
-    },
-    [data]
-  );
-
-  const handleFalseValueChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      data.false_value = parseFloat(e.target.value) || 0;
-    },
-    [data]
-  );
-
   return (
     <div
       className={`p-3 bg-white border-2 rounded-md ${
@@ -40,7 +55,7 @@ const ConditionalNode: React.FC<NodeProps<NodeData>> = ({ data, isConnectable, i
       <div className="mt-2">
         <label className="block text-sm font-medium text-gray-700">Condition</label>
         <select
-          value={data.condition}
+          value={localCondition}
           onChange={handleConditionChange}
           className="w-full p-1 border rounded mb-2"
         >
@@ -51,34 +66,15 @@ const ConditionalNode: React.FC<NodeProps<NodeData>> = ({ data, isConnectable, i
           <option value="<=">Less Than or Equal (&lt;=)</option>
           <option value="!=">Not Equal (!=)</option>
         </select>
-        
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700">True Value</label>
-            <input
-              type="number"
-              value={data.true_value ?? 0}
-              onChange={handleTrueValueChange}
-              className="w-full p-1 border rounded"
-            />
+            <div className="block text-sm font-medium text-gray-700">True Value: {TRUE_VALUE}</div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">False Value</label>
-            <input
-              type="number"
-              value={data.false_value ?? 0}
-              onChange={handleFalseValueChange}
-              className="w-full p-1 border rounded"
-            />
+            <div className="block text-sm font-medium text-gray-700">False Value: {FALSE_VALUE}</div>
           </div>
         </div>
       </div>
-      
-      <div className="mt-2 text-xs text-gray-500">
-        <p>Input 1</p>
-        <p>Input 2</p>
-      </div>
-      
       <Handle
         type="target"
         position={Position.Left}

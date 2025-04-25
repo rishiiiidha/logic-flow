@@ -1,16 +1,30 @@
-import React, { memo, useCallback } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import React, { memo, useCallback, useState, useEffect } from 'react';
+import { Handle, Position, NodeProps, useUpdateNodeInternals } from 'reactflow';
 
 interface NodeData {
   operation: string;
+  onChange?: (id: string, data: any) => void;
 }
 
 const OperationNode: React.FC<NodeProps<NodeData>> = ({ data, isConnectable, id, selected }) => {
+  const [localOperation, setLocalOperation] = useState<string>(data.operation || "+");
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    setLocalOperation(data.operation || "+");
+  }, [data.operation]);
+
   const handleOperationChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
-      data.operation = e.target.value;
+      const newOperation = e.target.value;
+      setLocalOperation(newOperation);
+      if (data.onChange) {
+        data.onChange(id, { operation: newOperation });
+      } else {
+        data.operation = newOperation;
+        updateNodeInternals(id);
+      }
     },
-    [data]
+    [data, id, updateNodeInternals]
   );
 
   return (
@@ -22,7 +36,7 @@ const OperationNode: React.FC<NodeProps<NodeData>> = ({ data, isConnectable, id,
       <div className="font-medium">Operation</div>
       <div className="mt-2">
         <select
-          value={data.operation}
+          value={localOperation}
           onChange={handleOperationChange}
           className="w-full p-1 border rounded"
         >

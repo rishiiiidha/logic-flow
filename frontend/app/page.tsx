@@ -13,6 +13,7 @@ import ReactFlow, {
   Edge as ReactFlowEdge,
   NodeChange,
   EdgeChange,
+  applyNodeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import NodeSelector from './components/NodeSelector';
@@ -32,6 +33,7 @@ interface NodeData {
   condition_inputs?: string[];
   true_value?: number | null;
   false_value?: number | null;
+  onChange?: (id: string, data: any) => void;
 }
 
 interface Node extends ReactFlowNode<NodeData> {
@@ -75,15 +77,24 @@ const LogicFlowEditor: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onNodeDataChange = useCallback((nodeId: string, newData: NodeData) => {
+  const onNodeDataChange = useCallback((nodeId: string, data: any) => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
+          if (typeof data === 'number') {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                value: data
+              }
+            };
+          }
           return {
             ...node,
             data: {
               ...node.data,
-              ...newData,
+              ...data,
             },
           };
         }
@@ -123,29 +134,26 @@ const LogicFlowEditor: React.FC = () => {
       });
 
       const newNodeId = `${type}_${Date.now()}`;
-      const newNode: Node = {
-        id: newNodeId,
-        type,
-        position,
-        data: { label: `${type.charAt(0).toUpperCase() + type.slice(1)}` },
+      let nodeData: NodeData = { 
+        label: `${type.charAt(0).toUpperCase() + type.slice(1)}`,
       };
 
       switch (type) {
         case 'constant':
-          newNode.data = { ...newNode.data, value: 0 };
+          nodeData = { ...nodeData, value: 0 };
           break;
         case 'variable':
-          newNode.data = { ...newNode.data, name: 'x', value: 0 };
+          nodeData = { ...nodeData, name: 'x', value: 0 };
           break;
         case 'operation':
-          newNode.data = { ...newNode.data, operation: '+' };
+          nodeData = { ...nodeData, operation: '+' };
           break;
         case 'result':
-          newNode.data = { ...newNode.data, result: null };
+          nodeData = { ...nodeData, result: null };
           break;
         case 'conditional':
-          newNode.data = {
-            ...newNode.data,
+          nodeData = {
+            ...nodeData,
             condition: '>',
             condition_inputs: [],
             true_value: 0,
@@ -155,11 +163,32 @@ const LogicFlowEditor: React.FC = () => {
         default:
           break;
       }
-      //@ts-ignore
+
+      nodeData.onChange = onNodeDataChange;
+
+      const newNode: Node = {
+        id: newNodeId,
+        type,
+        position,
+        data: nodeData,
+      };
+ //@ts-ignore
       setNodes((nds) => [...nds, newNode]);
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, setNodes, onNodeDataChange]
   );
+
+  React.useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          onChange: onNodeDataChange,
+        },
+      }))
+    );
+  }, [onNodeDataChange, setNodes]);
 
   const evaluateGraph = async () => {
     if (nodes.length === 0) {
@@ -171,7 +200,10 @@ const LogicFlowEditor: React.FC = () => {
     setError(null);
 
     try {
-      const updatedNodes = nodes.map(node => {
+      const nodesToSend = nodes.map(node => {
+         //@ts-ignore
+        const { onChange, ...cleanData } = node.data;
+        
         if (node.type === 'conditional') {
           const conditionInputs = edges
             .filter(
@@ -184,23 +216,25 @@ const LogicFlowEditor: React.FC = () => {
             .map((e) => e.source);
           
           return {
-            ...node,
+            id: node.id,
+            type: node.type,
             data: {
-              ...node.data,
+              ...cleanData,
               condition_inputs: conditionInputs
             }
           };
         }
-        return node;
+        
+        return {
+          id: node.id,
+          type: node.type,
+          data: cleanData
+        };
       });
 
       const graphData: GraphData = {
-           //@ts-ignore
-        nodes: updatedNodes.map((n) => ({
-          id: n.id,
-          type: n.type,
-          data: n.data,
-        })),
+        //@ts-ignore
+        nodes: nodesToSend,
         edges,
       };
 
@@ -276,7 +310,6 @@ const LogicFlowEditor: React.FC = () => {
               onInit={setReactFlowInstance}
               onDrop={onDrop}
               onDragOver={onDragOver}
-                 //@ts-ignore
               nodeTypes={nodeTypes}
               nodesDraggable={true}
               fitView
