@@ -26,6 +26,8 @@ A web application to create and evaluate logic flow graphs using a drag-and-drop
 
 ## Result
 
+<img width="1709" alt="image" src="https://github.com/user-attachments/assets/68e2a634-5fe0-4641-95a5-3c08b69758ec" />
+
 
 ## Use Cases
 
