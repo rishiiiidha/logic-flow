@@ -238,7 +238,7 @@ const LogicFlowEditor: React.FC = () => {
         edges,
       };
 
-      const response = await fetch('http://localhost:8000/evaluate', {
+      const response = await fetch('https://logic-flow-server.vercel.app/evaluate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
